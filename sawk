@@ -2,7 +2,7 @@
 
 format(){
 	# we want to protect single empty lines
-	sed 's/^[\t ]*$/#~#~#/g' | gawk -o- -f- | sed 's/#~#~#//g' | cat -s
+	sed 's/^[\t ]*$/#~#~#/g' | gawk -o- -f- | sed 's/#~#~#//g'
 }
 
 lint() {
@@ -10,17 +10,10 @@ lint() {
 }
 
 wrap(){
-	file="$1"
-	shift
-
-	{
-		echo "#!/usr/bin/env sh"
-		echo "exec awk '"
-		cat -
-		echo "'"' -- "$@"'
-	} > "${file%.*}"
-
-	echo "${file%.*}"
+	echo "#!/usr/bin/env sh"
+	echo "exec awk '"
+	cat -s - | grep -Ev '^#!'
+	echo "'"' -- "$@"'
 }
 
 link() {
