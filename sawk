@@ -1,10 +1,10 @@
 #!/bin/sh
 
-lint(){
-	gawk --lint=fatal -f "${1--}" >/dev/null
+lint() {
+	gawk --posix "--lint$fatal" -f "${1--}" >/dev/null
 }
 
-link(){
+link() {
 	awk '/^#include/ {
 		gsub(/"/, "", $2)
 
@@ -19,13 +19,28 @@ link(){
 	}' "$@"
 }
 
+usage() {
+	echo "usage: sawk [-dmv] [file]" >&2
+	exit 1
+}
+
 set -eu
 
-linked="$(link "$@")"
+fatal="=fatal"
+while getopts "mv" c; do
+	case "$c" in
+	d) set -x ;;
+	m) fatal="" ;;
+	v) echo "sawk v0.0.1" && exit ;;
+	*) usage ;;
+	esac
+done
+shift $((OPTIND - 1))
+
+[ "$#" -ne 1 ] && usage
+
+linked="$(link "$1")"
 
 echo "$linked" | lint -
 
 echo "$linked" | ./awkfmt
-
-
-
