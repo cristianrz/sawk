@@ -1,3 +1,3 @@
-BEGIN {
-	print "hello"	
-}
+#include awkrun
+
+Hello world

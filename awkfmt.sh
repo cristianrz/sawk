@@ -59,9 +59,7 @@ if "$stdin"; then
 		exit 1
 	fi
 
-	input="$(mktemp)"
-	trap 'rm -f "$input"' EXIT
-	cat >"$input"
+	input=-
 else
 	if ! "$stdout"; then
 		output="$(mktemp)"
