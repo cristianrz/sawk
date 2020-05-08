@@ -9,6 +9,20 @@ lint() {
 	gawk --posix "--lint$fatal" -f "${1--}" >/dev/null
 }
 
+wrap(){
+	file="$1"
+	shift
+
+	{
+		echo "#!/usr/bin/env sh"
+		echo "exec awk '"
+		cat -
+		echo "'"' -- "$@"'
+	} > "${file%.*}"
+
+	echo "${file%.*}"
+}
+
 link() {
 	awk '
 		/^#include/ {
@@ -67,8 +81,9 @@ linked="$(link "$1")"
 
 echo "$linked" | lint -
 
-out="${1%.*}.awk"
+out="${1%.*}"
 
-echo "$linked" | format > "$out"
+echo "$linked" | format | wrap > "$out"
 chmod +x "$out"
 echo "$out"
+
