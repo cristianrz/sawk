@@ -1,4 +1,5 @@
-*sawk
+*.sawk
 archive
 archive/*
 sawk.1
+test*

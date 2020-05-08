@@ -1,0 +1,14 @@
+#!/bin/sh
+
+file="$1"
+shift
+
+{
+	echo "#!/usr/bin/env sh"
+	echo "exec awk '"
+	cat "$file"
+	echo "'"' -- "$@"'
+} > "${file%.*}"
+
+echo "${file%.*}"
+
