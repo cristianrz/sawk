@@ -14,7 +14,9 @@ $ make
 
 ## SYNOPSIS
 
+```
 sawk _file_
+```
 
 ## DESCRIPTION
 
