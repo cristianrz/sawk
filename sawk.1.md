@@ -6,7 +6,7 @@ sawk - some extras to POSIX awk
 
 # SYNOPSIS
 
-sawk _file_
+sawk [-dmv] _file_
 
 # DESCRIPTION
 
@@ -44,6 +44,10 @@ code, which gawk, for some reason, deletes.
 -h
 
 :   Prints brief usage information.
+
+-m
+
+:   Don't fail if lint finds error
 
 -v
 

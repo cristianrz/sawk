@@ -15,7 +15,7 @@ $ make
 ## SYNOPSIS
 
 ```
-sawk _file_
+sawk [-dmv] file
 ```
 
 ## DESCRIPTION
