@@ -10,18 +10,18 @@ sawk _file_
 
 # DESCRIPTION
 
-Wraps some gawk(1) functions and a linker into an interface makeawk slightly
-easier to work with.
+Wraps some gawk(1) functions and a linker to make POSIX awk slightly easier to
+work with.
 
-sawk's name comes from "slightly better awk" and it came to live from the frustration
-from trying to work with POSIX awk. It adds some of the features of systems
-programming languages without making it unportable as its main purpose is to
-transpile to POSIX awk.
+sawk's name comes from "slightly better awk" and it came to live from the
+frustration from trying to work with POSIX awk. It adds some of the features of
+systems programming languages without making it unportable as its main purpose
+is to transpile to POSIX awk.
 
 ## Linking
 
 sawk allows linking libraries to sawk programs by using the traditional
-_#include "file"_ directory. sawk will look for the file and include that file's
+#include "file" directive. sawk will look for the file and include that file's
 code in the main file at the position where the include directive was found.
 
 ## Linting
