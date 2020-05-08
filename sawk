@@ -1,22 +1,42 @@
 #!/bin/sh
 
+format(){
+	# we want to protect single empty lines
+	sed 's/^[\t ]*$/#~#~#/g' | gawk -o- -f- | sed 's/#~#~#//g' | cat -s
+}
+
 lint() {
 	gawk --posix "--lint$fatal" -f "${1--}" >/dev/null
 }
 
 link() {
-	awk '/^#include/ {
-		gsub(/"/, "", $2)
+	awk '
+		/^#include/ {
+			gsub(/"/, "", $2)
 
-		while ((getline x < $2) > 0)
-			print x
+			cmd = "[ -f " $2 " ]"
 
-		next
-	}
+			exists = system(cmd)
+			close(cmd)
 
-	{
-		print
-	}' "$@"
+			if ( exists == 1 ) {
+				print "sawk: could not find include: " $2 > "/dev/stderr"
+				exit
+			}
+
+			while ((getline x < $2) > 0)
+				print x
+			next
+		}
+
+		{
+			print
+		}
+		
+		END {
+			exit exists
+		}
+	' "$@" 
 }
 
 usage() {
@@ -43,4 +63,8 @@ linked="$(link "$1")"
 
 echo "$linked" | lint -
 
-echo "$linked" | ./awkfmt
+out="${1%.*}"
+
+echo "$linked" | format > "$out"
+chmod +x "$out"
+echo "$out"
