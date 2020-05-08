@@ -33,7 +33,14 @@ it transpiles it to POSIX awk.
 
 sawk wraps gawk's --format utility to protect empty lines in between lines of
 code, which gawk, for some reason, deletes.
- 
+
+## Shell wrapping
+
+sawk wraps the output of the the previous functions inside a shell script that
+passes all arguments directly to your awk program. This is to avoid awk itself
+recognising the arguments as options for the interpreter rather than for the
+program. It finally outputs a file with the name specified in the arguments, if
+any, otherwise a.out.
 
 ## Options
 
@@ -48,6 +55,10 @@ code, which gawk, for some reason, deletes.
 -m
 
 :   Don't fail if lint finds error
+
+-o name
+
+:   Specify the name of the output file
 
 -v
 

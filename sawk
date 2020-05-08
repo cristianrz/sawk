@@ -58,10 +58,11 @@ usage() {
 set -eu
 
 fatal="=fatal"
-while getopts "mv" c; do
+while getopts "dmo:v" c; do
 	case "$c" in
 	d) set -x ;;
 	m) fatal="" ;;
+	o) out="$OPTARG" ;;
 	v) echo "sawk v0.0.1" && exit ;;
 	*) usage ;;
 	esac
@@ -70,13 +71,12 @@ shift $((OPTIND - 1))
 
 [ "$#" -ne 1 ] && usage
 
+: "${out=a.out}"
+
 linked="$(link "$1")"
 
 echo "$linked" | lint -
 
-out="${1%.*}"
-
 echo "$linked" | format | wrap > "$out"
 chmod +x "$out"
 echo "$out"
-
