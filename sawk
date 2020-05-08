@@ -1,9 +1,31 @@
 #!/bin/sh
 
+lint(){
+	gawk --lint=fatal -f "${1--}" >/dev/null
+}
+
+link(){
+	awk '/^#include/ {
+		gsub(/"/, "", $2)
+
+		while ((getline x < $2) > 0)
+			print x
+
+		next
+	}
+
+	{
+		print
+	}' "$@"
+}
+
 set -eu
 
-linked="$(./awklink "$@")"
+linked="$(link "$@")"
 
-echo "$linked" | ./awklint -
+echo "$linked" | lint -
 
 echo "$linked" | ./awkfmt
+
+
+
