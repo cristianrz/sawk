@@ -63,7 +63,7 @@ linked="$(link "$1")"
 
 echo "$linked" | lint -
 
-out="${1%.*}"
+out="${1%.*}.awk"
 
 echo "$linked" | format > "$out"
 chmod +x "$out"
