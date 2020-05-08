@@ -26,48 +26,47 @@ code in the main file at the position where the include directive was found.
 
 ## Linting
 
+sawk uses gawk's --lint utility with the fatal option to lint the code before
+it transpiles it to POSIX awk.
+
+## Formatting
+
+sawk wraps gawk's --format utility to protect empty lines in between lines of
+code, which gawk, for some reason, deletes.
+ 
+
 ## Options
 
--h, --help
+-d
+
+:   Activates set -x for debugging
+
+-h
 
 :   Prints brief usage information.
 
--o, --output
-
-:   Outputs the greeting to the given filename.
-
-    The file must be an **open(2)**able and **write(2)**able file.
-
--v, --version
+-v
 
 :   Prints the current version number.
 
+
 # FILES
 
-*~/.hellorc*
-
-:   Per-user default dedication file.
-
-*/etc/hello.conf*
-
-:   Global default dedication file.
+No files for now.
 
 # ENVIRONMENT
 
-**DEFAULT_HELLO_DEDICATION**
-
-:   The default dedication if none is given. Has the highest precedence
-    if a dedication is not supplied on the command line.
+No environment variables for now.
 
 # BUGS
 
-See GitHub Issues: <https://github.com/[owner]/[repo]/issues>
+See GitHub issues: <https://github.com/cristianrz/sawk/issues>
 
 # AUTHOR
 
-Foobar Goodprogrammer <foo@example.org>
+Cristian Ariza <dev@cristianrz.com>
 
 # SEE ALSO
 
-**hi(1)**, **hello(3)**, **hello.conf(4)**
+awk(1), gawk(1)
 
