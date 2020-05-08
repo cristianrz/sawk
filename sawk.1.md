@@ -6,7 +6,7 @@ sawk - some extras to POSIX awk
 
 # SYNOPSIS
 
-sawk [-dmv] _file_
+sawk [options] filename
 
 # DESCRIPTION
 
@@ -46,7 +46,7 @@ any, otherwise a.out.
 
 -d
 
-:   Activates set -x for debugging
+:   Activates set -x for debugging.
 
 -h
 
@@ -54,11 +54,11 @@ any, otherwise a.out.
 
 -m
 
-:   Don't fail if lint finds error
+:   Don't fail if lint finds error.
 
--o name
+-o file
 
-:   Specify the name of the output file
+:   Write output to file.
 
 -v
 
