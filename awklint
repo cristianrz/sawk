@@ -1,0 +1,3 @@
+#!/bin/sh
+exec gawk --lint=fatal -f "${1--}" >/dev/null
+

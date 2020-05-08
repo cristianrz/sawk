@@ -1,3 +1,13 @@
-#include awkrun
+#!/usr/bin/awk -f
 
-Hello world
+#include "include.awk"
+
+BEGIN {
+
+	print "A"
+
+	prrr()
+
+	print "B"
+
+}

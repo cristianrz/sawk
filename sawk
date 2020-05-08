@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -eu
+
+linked="$(./awklink "$@")"
+
+echo "$linked" | ./awklint -
+
+echo "$linked" | ./awkfmt
