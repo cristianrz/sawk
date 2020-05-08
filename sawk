@@ -40,7 +40,11 @@ link() {
 }
 
 usage() {
-	echo "usage: sawk [-dmv] [file]" >&2
+	{
+		echo "usage: sawk [-dmv] [file]"
+		echo
+		echo "See 'man sawk' for more info."
+	} >&2
 	exit 1
 }
 
