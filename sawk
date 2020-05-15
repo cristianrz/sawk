@@ -1,82 +1,28 @@
 #!/bin/sh
 
-format(){
-	# we want to protect single empty lines
-	sed 's/^[\t ]*$/#~#~#/g' | gawk -o- -f- | sed 's/#~#~#//g'
-}
-
-lint() {
-	gawk --posix "--lint$fatal" -f "${1--}" >/dev/null
-}
-
-wrap(){
-	echo "#!/usr/bin/env sh"
-	echo "exec awk '"
-	cat -s - | grep -Ev '^#!'
-	echo "'"' -- "$@"'
-}
-
-link() {
-	awk '
-		/^#include/ {
-			gsub(/"/, "", $2)
-
-			cmd = "[ -f " $2 " ]"
-
-			exists = system(cmd)
-			close(cmd)
-
-			if ( exists == 1 ) {
-				print "sawk: could not find include: " $2 > "/dev/stderr"
-				exit
-			}
-
-			while ((getline x < $2) > 0)
-				print x
-			next
-		}
-
-		{
-			print
-		}
-		
-		END {
-			exit exists
-		}
-	' "$@" 
-}
-
 usage() {
-	{
-		echo "usage: sawk [-dmv] [file]"
-		echo
-		echo "See 'man sawk' for more info."
-	} >&2
+	cat <<'EOF'
+Sawk is a tool for managing awk source code.
+
+Usage:
+
+	sawk <command> [arguments]
+
+The commands are:
+
+	build       compile packages and dependencies
+	fmt         reformat source
+	run         compile and run Go program
+	version     print Go version
+EOF
 	exit 1
 }
 
-set -eu
+[ "$#" -eq 0 ] && usage && exit 1
 
-fatal="=fatal"
-while getopts "dmo:v" c; do
-	case "$c" in
-	d) set -x ;;
-	m) fatal="" ;;
-	o) out="$OPTARG" ;;
-	v) echo "sawk v0.0.1" && exit ;;
-	*) usage ;;
-	esac
-done
-shift $((OPTIND - 1))
+cmd="$1" && shift
 
-[ "$#" -ne 1 ] && usage
-
-: "${out=a.out}"
-
-linked="$(link "$1")"
-
-echo "$linked" | lint -
-
-echo "$linked" | format | wrap > "$out"
-chmod +x "$out"
-echo "$out"
+case "$cmd" in
+build | fmt | run) ./sawk-"$cmd" "$@" ;;
+*) usage ;;
+esac

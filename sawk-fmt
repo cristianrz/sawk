@@ -9,8 +9,8 @@ format(){
 }
 
 usage() {
-	printf 'usage: %s [flags] [path ...]
-	-w  write result to (source) file instead of stdout\n' "$(basename "$0")"
+	echo 'usage: awkfmt [flags] [path ...]
+	-w  write result to (source) file instead of stdout'
 	exit 1
 }
 
