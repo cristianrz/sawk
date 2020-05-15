@@ -2,7 +2,6 @@
 
 ## Dependencies
 
-* `awka`
 * `gawk`
 * `make`
 
