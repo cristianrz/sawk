@@ -1,15 +1,152 @@
 #!/bin/sh
 
+build_usage() {
+	cat <<'EOF' >&2
+usage: sawk build [-o output] [-m] [program]
+
+Build compiles the named programs.
+
+Options:
+	-m  Don't fail on lint errors
+	-o  Specify output file
+EOF
+	exit 1
+}
+
+lint() {
+	gawk --posix "--lint$fatal" -f "$1" >/dev/null || status="$?"
+
+	# gawk returns 2 if there is errors
+	[ "$status" = 2 ] && return 1 || return 0
+}
+
+link() {
+	awk '
+		/^#include/ {
+			gsub(/"/, "", $2)
+
+			cmd = "[ -f " $2 " ]"
+
+			exists = system(cmd)
+			close(cmd)
+
+			if ( exists == 1 ) {
+				print "sawk: could not find include: " $2 > "/dev/stderr"
+				exit
+			}
+
+			while ((getline x < $2) > 0) print x
+			next
+		}
+
+		{ print }
+		
+		END { exit exists }
+	' "$@"
+}
+
+build() {
+	fatal="=fatal"
+	while getopts "mo:" c; do
+		case "$c" in
+		m) fatal="" ;;
+		o) out="$OPTARG" ;;
+		*) build_usage ;;
+		esac
+	done
+	shift $((OPTIND - 1))
+
+	[ "$#" -ne 1 ] && build_usage
+
+	: "${out=a.out}"
+
+	linked="$(mktemp)"
+	trap 'rm -f $linked' EXIT
+
+	link "$1" >"$linked"
+
+	lint "$linked"
+
+	awka -X -f "$linked"
+	rm -f awka_out.c
+	mv awka.out "$out"
+}
+#!/bin/sh
+
+format() {
+	sed 's/^[\t ]*$/#~#~#/g' "$1" | gawk -o- -f- | sed 's/#~#~#//g' | cat -s
+}
+
+fmt_usage() {
+	cat <<'EOF' >&2
+usage: sawk fmt [-w] program 
+
+Formats the named program.
+
+Options:
+	-w  write result to (source) file instead of stdout
+EOF
+	exit 1
+}
+
+fmt() {
+	while getopts "dhw" c; do
+		case "$c" in
+		w) inplace=true ;;
+		*) usage ;;
+		esac
+	done
+	shift "$((OPTIND - 1))"
+
+	in="${1--}"
+	: "${inplace=false}"
+
+	if "$inplace"; then
+		[ "$in" = "-" ] &&
+			echo 'error: cannot use -w with standard in' >&2 &&
+			exit 1
+
+		out="$(mktemp)"
+		trap 'rm -f "$out"' EXIT
+	fi
+
+	: "${out=-}"
+
+	if "$inplace"; then
+		format "$in" >"$out"
+		cp "$out" "$in"
+	else
+		format "$in"
+	fi
+}
+
+run_usage() {
+	cat <<'EOF' >&2
+usage: sawk run [program] [arguments...]
+
+Run compiles and runs the named awk program.
+EOF
+	exit 1
+}
+
+run() {
+	[ "$#" -eq 0 ] && run_usage
+
+	TMP="$(mktemp)"
+	trap 'rm -f $TMP' EXIT
+
+	sawk-build -o "$TMP" "$1"
+
+	"$TMP" "$@"
+}
+
 usage() {
 	cat <<'EOF'
+usage: sawk [command] [arguments]
+
 Sawk is a tool for managing awk source code.
 
-Usage:
-
-	sawk <command> [arguments]
-
-The commands are:
-
+Commands:
 	build       compile packages and dependencies
 	fmt         reformat source
 	run         compile and run Go program
@@ -20,9 +157,8 @@ EOF
 
 [ "$#" -eq 0 ] && usage && exit 1
 
-cmd="$1" && shift
-
-case "$cmd" in
-build | fmt | run) ./sawk-"$cmd" "$@" ;;
+case "$1" in
+build | fmt | run) "$@" ;;
+version) echo "sawk v0.1.0" ;;
 *) usage ;;
 esac
