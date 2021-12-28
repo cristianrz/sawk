@@ -1,17 +1,13 @@
-# sawk - some extras to POSIX awk
+# soup - wrapper around gawk
 
 ## Dependencies
 
 * `gawk`
-* `make`
 
 ## Installing
 
-```
-$ make
-# make install
-```
+TODO
 
 ## Usage
 
-See [man page](https://github.com/cristianrz/sawk/blob/master/sawk.1.md).
+See [man page](https://github.com/cristianrz/soup/blob/master/soup.1.md).
