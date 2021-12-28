@@ -13,4 +13,4 @@ $ chmod +x "$HOME/bin/soup"
 
 ## Usage
 
-See [man page](https://github.com/cristianrz/soup/blob/master/soup.1.md).
+See [man page](https://github.com/cristianrz/sawk/blob/soup/soup.1.md).
