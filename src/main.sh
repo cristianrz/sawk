@@ -24,7 +24,7 @@ wrap() {
 # won't be portable. Gawk is more comfortable due to --lint and -f (format) but
 # that doesn't mean we need to tie the final script with gawk.
 link() {
-	gawk "--posix --lint$fatal" '
+	gawk --posix "--lint$fatal" '
 		/^#include/ {
 			gsub(/"/, "", $2)
 
@@ -74,7 +74,7 @@ while [ "$#" -ge 1 ]; do
 	case "x$arg" in
 	xformat)
 		[ "$#" -eq 0 ] && usage
-		format <"$1"
+		cat | format
 		;;
 	xbuild)
 		[ "$#" -eq 0 ] && usage
