@@ -8,6 +8,7 @@
 
 `
 cat src/main.sh "$HOME/bin/soup"
+
 chmod +x "$HOME/bin/soup"
 `
 
