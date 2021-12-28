@@ -7,7 +7,7 @@
 ## Installing
 
 ```shell
-$ cat src/main.sh "$HOME/bin/soup"
+$ cat src/main.sh > "$HOME/bin/soup"
 $ chmod +x "$HOME/bin/soup"
 ```
 
