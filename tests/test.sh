@@ -1,3 +1,1 @@
-#!/bin/sh
-
-echo 'TODO'
+echo TODO; exit 1
