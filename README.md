@@ -1,25 +1,16 @@
-# sawk - some extras to POSIX awk
+# soup - wrapper around gawk
 
 ## Dependencies
 
 * `gawk`
-* `make`
 
 ## Installing
 
-```terminal
-$ make
-# make install
+```shell
+$ cat src/main.sh > "$HOME/bin/soup"
+$ chmod +x "$HOME/bin/soup"
 ```
 
 ## Usage
 
-```terminal
-# Format the file in place
-$ awkfmt -w hello.awk
-
-# Format to stdout
-$ awkfmt hello.awk
-```
-
-More details on the [man page](https://github.com/cristianrz/sawk/blob/master/sawk.1.md).
+See [man page](https://github.com/cristianrz/sawk/blob/soup/soup.1.md).
