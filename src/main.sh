@@ -17,11 +17,12 @@ format() {
 # wraps awk scripts with a shell file so command line arguments can be passed
 # easily
 wrap() {
-	echo "#!/bin/sh"
-	echo "exec awk '"
+  printf "#!/bin/sh\nexec awk'\n"
+
 	#Remove shebang
 	grep -Ev '^#!'
-	echo "'"' -- "$@"'
+
+  printf "' -- \"\$@\""
 }
 
 usage() {
@@ -39,8 +40,6 @@ EOF
 }
 
 set -eu
-
-fatal="=fatal"
 
 [ "$#" -eq 0 ] && usage
 
