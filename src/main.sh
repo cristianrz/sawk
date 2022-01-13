@@ -1,63 +1,46 @@
 #!/bin/sh
 #
-# Wrapper around POSIX subset of gawk to make it more friendly
+# Wrapper around awk to make it more friendly
 
 set -eu
 
-type gawk >/dev/null || echo 'soup: gawk not installed' >&2
+THIS="$(basename "$0")"
+
+type gawk >/dev/null || echo "$THIS: gawk not installed" >&2
 
 format() {
-	# we want to protect single empty lines
+	# we want to protect single empty lines because gawk does not care about your
+	# vertical spacing
 	sed 's/^[\t ]*$/#~#~#/g' | gawk --posix -o- -f- | sed 's/#~#~#//g'
 }
 
 # wraps awk scripts with a shell file so command line arguments can be passed
+# easily
 wrap() {
 	echo "#!/bin/sh"
-	echo "exec gawk --posix --lint$fatal '"
-	#Remove shebangs
+	echo "exec awk '"
+	#Remove shebang
 	grep -Ev '^#!'
 	echo "'"' -- "$@"'
 }
 
 # Even though gawk has include statements for libraries, the resulting script
-# won't be portable. Gawk is more comfortable due to --lint and -f (format) but
-# that doesn't mean we need to tie the final script with gawk.
+# won't be portable. With soup building the script requires soup but after it
+# is built it will run on any POSIX awk
 link() {
-	gawk "--posix --lint$fatal" '
-		/^#include/ {
-			gsub(/"/, "", $2)
-
-			cmd = "[ -f " $2 " ]"
-
-			exists = system(cmd)
-			close(cmd)
-
-			if ( exists == 1 ) {
-				print "soup: could not find include: " $2 > "/dev/stderr"
-				exit
-			}
-
-			while ((getline x < $2) > 0)
-				print x
-			next
-		}
-
-		{
-			print
-		}
-		
-		END {
-			exit exists
-		}
-	' "$@"
+  gawk -o- -f "$1"
 }
 
 usage() {
 	{
-		echo "Usage: soup COMMAND [FILE]"
-		echo
-		echo "See 'man soup' for more info."
+		cat <<EOF
+Usage: $THIS COMMAND [FILE]
+
+Commands:
+  format    formats an awk script
+  lint      looks for mistakes 
+  build     links libraries and outputs a self-contained awk script
+EOF
 	} >&2
 	exit 1
 }
@@ -76,6 +59,9 @@ while [ "$#" -ge 1 ]; do
 		[ "$#" -eq 0 ] && usage
 		format <"$1"
 		;;
+	xlint)
+		gawk --lint=fatal --posix "$1"
+		;;
 	xbuild)
 		[ "$#" -eq 0 ] && usage
 
@@ -83,6 +69,6 @@ while [ "$#" -ge 1 ]; do
 		linked="$(link "$1")"
 		echo "$linked" | wrap
 		;;
-	x-v) echo "soup v0.0.1" && exit ;;
+	x-v) echo "$THIS v0.0.1" && exit ;;
 	esac
 done
