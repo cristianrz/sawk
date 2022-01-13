@@ -24,22 +24,15 @@ wrap() {
 	echo "'"' -- "$@"'
 }
 
-# Even though gawk has include statements for libraries, the resulting script
-# won't be portable. With soup building the script requires soup but after it
-# is built it will run on any POSIX awk
-link() {
-  gawk -o- -f "$1"
-}
-
 usage() {
 	{
 		cat <<EOF
 Usage: $THIS COMMAND [FILE]
 
 Commands:
-  format    formats an awk script
-  lint      looks for mistakes 
-  build     links libraries and outputs a self-contained awk script
+  build   links libraries and outputs a self-contained awk script
+  format  formats an awk script
+  run     run with gawk most strict setting
 EOF
 	} >&2
 	exit 1
@@ -59,15 +52,18 @@ while [ "$#" -ge 1 ]; do
 		[ "$#" -eq 0 ] && usage
 		format <"$1"
 		;;
-	xlint)
-		gawk --lint=fatal --posix "$1"
+	xrun)
+		[ "$#" -eq 0 ] && usage
+
+		gawk --lint=fatal --posix "$@"
 		;;
 	xbuild)
 		[ "$#" -eq 0 ] && usage
 
-		# Add libraries
-		linked="$(link "$1")"
-		echo "$linked" | wrap
+		# Even though gawk has include statements for libraries, the resulting
+		# script won't be portable. With soup, building the script requires soup but
+		# after it is built it will run on any POSIX awk
+		gawk -o- -f "$1" | wrap
 		;;
 	x-v) echo "$THIS v0.1.0" && exit ;;
 	esac
