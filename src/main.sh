@@ -69,6 +69,6 @@ while [ "$#" -ge 1 ]; do
 		linked="$(link "$1")"
 		echo "$linked" | wrap
 		;;
-	x-v) echo "$THIS v0.0.1" && exit ;;
+	x-v) echo "$THIS v0.1.0" && exit ;;
 	esac
 done
