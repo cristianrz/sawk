@@ -11,18 +11,18 @@ type gawk >/dev/null || echo "$THIS: gawk not installed" >&2
 format() {
 	# we want to protect single empty lines because gawk does not care about your
 	# vertical spacing
-	sed 's/^[\t ]*$/#~#~#/g' | gawk --posix -o- -f- | sed 's/#~#~#//g'
+	sed 's/^[\t ]*$/#~#~#/g' | gawk -o- -f- | sed 's/#~#~#//g'
 }
 
 # wraps awk scripts with a shell file so command line arguments can be passed
 # easily
 wrap() {
-  printf "#!/bin/sh\nexec awk'\n"
+  printf "#!/bin/sh\nexec awk '\n"
 
 	#Remove shebang
 	grep -Ev '^#!'
 
-  printf "' -- \"\$@\""
+  printf "' -- \"\$@\"\n"
 }
 
 usage() {
@@ -54,7 +54,7 @@ while [ "$#" -ge 1 ]; do
 	xrun)
 		[ "$#" -eq 0 ] && usage
 
-		gawk --lint=fatal --posix "$@"
+		gawk --lint=fatal --lint=no-ext -f "$@"
 		;;
 	xbuild)
 		[ "$#" -eq 0 ] && usage
