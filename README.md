@@ -21,6 +21,7 @@ Let's create a couple (bad) awk script:
 BEGIN {
   print "Hello, "
 }
+```
 
 ```awk
 # world.awk
