@@ -17,7 +17,6 @@ Let's create a couple (bad) awk script:
 
 ```awk
 # hello.awk
-
 BEGIN {
   print "Hello, "
 }
@@ -25,12 +24,12 @@ BEGIN {
 
 ```awk
 # world.awk
-
 @include "hello.awk"
 BEGIN {
   a = "world!"
 
   print b
+}
 ```
 
 Now let's check for errors:
@@ -51,6 +50,7 @@ BEGIN {
   b = "world!"
 
   print b
+}
 ```
 
 and try again:
@@ -64,27 +64,10 @@ world!
 Now we are ready build our portable script:
 
 ```terminal
-$ soup build world.awk | tee hello-world
-#!/bin/sh
-exec awk '
-BEGIN {
-	print "Hello, "
-}
-
-BEGIN {
-	a = "world!"
-	print a
-}
-
-
-# Included files (-i and/or @include)
-
-# @include "hello.awk"
-
-' -- "$@"
+$ soup build world.awk > hello-world
 ```
 
-and our POSIX script is ready to run:
+and our POSIX script is ready to run on systems without gawk:
 
 ```terminal
 $ chmod +x hello-world
