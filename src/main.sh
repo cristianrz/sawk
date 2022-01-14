@@ -1,12 +1,8 @@
 #!/bin/sh
 #
-# Wrapper around awk to make it more friendly
+# Wrapper around gawk to make it more friendly
 
 set -eu
-
-THIS="$(basename "$0")"
-
-type gawk >/dev/null || echo "$THIS: gawk not installed" >&2
 
 format() {
 	# we want to protect single empty lines because gawk does not care about your
@@ -14,6 +10,20 @@ format() {
 	sed 's/^[\t ]*$/#~#~#/g; s/@include/#-#-#/g' "$@" |
 		gawk -o- -f- |
 		sed 's/#~#~#//g; s/#-#-#/@include/g'
+}
+
+usage() {
+	{
+		cat <<EOF
+Usage: $THIS COMMAND [FILE]
+
+Commands:
+  build  links libraries and outputs a self-contained awk script
+  fmt    formats an awk script
+  run    run with gawk most strict setting
+EOF
+	} >&2
+	exit 1
 }
 
 # wraps awk scripts with a shell file so command line arguments can be passed
@@ -27,21 +37,9 @@ wrap() {
 	printf "' -- \"\$@\"\n"
 }
 
-usage() {
-	{
-		cat <<EOF
-Usage: $THIS COMMAND [FILE]
+THIS="$(basename "$0")"
 
-Commands:
-  build   links libraries and outputs a self-contained awk script
-  format  formats an awk script
-  run     run with gawk most strict setting
-EOF
-	} >&2
-	exit 1
-}
-
-set -eu
+type gawk >/dev/null || echo "$THIS: gawk not installed" >&2
 
 [ "$#" -eq 0 ] && usage
 
@@ -49,7 +47,7 @@ while [ "$#" -ge 1 ]; do
 	arg="$1" && shift
 
 	case "x$arg" in
-	xformat) format "$@" ;;
+	xfmt) format "$@" ;;
 	xrun)
 		[ "$#" -eq 0 ] && usage
 
@@ -63,6 +61,6 @@ while [ "$#" -ge 1 ]; do
 		# after it is built it will run on any POSIX awk
 		gawk -o- -f "$1" | wrap
 		;;
-	x-v) echo "$THIS v0.1.0" && exit ;;
+	x-v) echo "$THIS v1.0.0" && exit ;;
 	esac
 done
