@@ -73,7 +73,6 @@ while [ "$#" -ge 1 ]; do
 
 	case "x$arg" in
 	xformat)
-		[ "$#" -eq 0 ] && usage
 		cat | format
 		;;
 	xbuild)
