@@ -1,82 +1,101 @@
 #!/bin/sh
-
-format(){
-	# we want to protect single empty lines
-	sed 's/^[\t ]*$/#~#~#/g' | gawk -o- -f- | sed 's/#~#~#//g'
-}
-
-lint() {
-	gawk --posix "--lint$fatal" -f "${1--}" >/dev/null
-}
-
-wrap(){
-	echo "#!/usr/bin/env sh"
-	echo "exec awk '"
-	cat -s - | grep -Ev '^#!'
-	echo "'"' -- "$@"'
-}
-
-link() {
-	awk '
-		/^#include/ {
-			gsub(/"/, "", $2)
-
-			cmd = "[ -f " $2 " ]"
-
-			exists = system(cmd)
-			close(cmd)
-
-			if ( exists == 1 ) {
-				print "sawk: could not find include: " $2 > "/dev/stderr"
-				exit
-			}
-
-			while ((getline x < $2) > 0)
-				print x
-			next
-		}
-
-		{
-			print
-		}
-		
-		END {
-			exit exists
-		}
-	' "$@" 
-}
-
-usage() {
-	{
-		echo "usage: sawk [-dmv] [file]"
-		echo
-		echo "See 'man sawk' for more info."
-	} >&2
-	exit 1
-}
+#
+# LICENSE
+#
+# Sawk is a script for formatting, linting, and wrapping AWK scripts with support for #include directives.
 
 set -eu
 
-fatal="=fatal"
-while getopts "dmo:v" c; do
-	case "$c" in
-	d) set -x ;;
-	m) fatal="" ;;
-	o) out="$OPTARG" ;;
-	v) echo "sawk v0.0.1" && exit ;;
-	*) usage ;;
-	esac
+# Constants
+EMPTY_PLACEHOLDER="#~#~#"
+VERSION="v0.0.1"
+DEFAULT_OUTPUT="a.out"
+
+# Functions
+# usage displays usage information for the sawk command.
+usage() {
+    cat << EOF >&2
+usage: sawk [-d] [-m] [-o output_file] [-v] file
+
+Sawk is a script for formatting, linting, and wrapping AWK scripts with support for #include directives.
+
+Options:
+  -d          Enable debug mode for verbose output
+  -m          Disable fatal errors in linting (non-fatal mode)
+  -o <file>   Specify output file name (default: a.out)
+  -v          Show version information
+  -h          Show this help message
+
+Arguments:
+  file        The AWK script file to process
+
+Examples:
+  sawk -o myscript.sh myfile.awk
+  sawk -d myfile.awk
+
+EOF
+    exit 0
+}
+
+# _format preserves single empty lines in the input AWK script.
+_format() {
+    sed "s/^[\t ]*$/${EMPTY_PLACEHOLDER}/g" | gawk -o- -f- | sed "s/${EMPTY_PLACEHOLDER}//g"
+}
+
+# _lint runs gawk linting to check for syntax errors and warnings.
+_lint() {
+    gawk --posix "--lint${fatal_flag}" -f "${1--}" >/dev/null
+}
+
+# _wrap wraps the processed script to make it executable.
+_wrap() {
+    printf '%s\n' "#!/usr/bin/env sh" "exec awk '"
+    sed -e '/^#!/d' -e '/^$/d'
+    printf '%s\n' "'"' -- "$@"'
+}
+
+# _link handles #include directives in the AWK script.
+_link() {
+    awk '
+        BEGIN { exit_code = 0 }
+        /^#include/ {
+            gsub(/"/, "", $2)
+            if ! [ -f "$2" ]; then
+                printf "%s: could not find include: %s\n" "$(basename "$0")" "$2" >&2
+                exit_code=1
+            } else {
+                while ((getline line < $2) > 0) print line
+            }
+            next
+        }
+        { print }
+        END { exit exit_code }
+    ' "$@"
+}
+
+# Variables
+fatal_flag="=fatal"
+output_file="${DEFAULT_OUTPUT}"
+
+# Option parsing
+while getopts "dmo:vh" opt; do
+    case "$opt" in
+        d) set -x ;;
+        m) fatal_flag="" ;;
+        o) output_file="$OPTARG" ;;
+        v) printf '%s\n' "sawk ${VERSION}" && exit ;;
+        h) usage ;;
+        *) usage ;;
+    esac
 done
 shift $((OPTIND - 1))
 
+# Check for required arguments
 [ "$#" -ne 1 ] && usage
 
-: "${out=a.out}"
-
-linked="$(link "$1")"
-
-echo "$linked" | lint -
-
-echo "$linked" | format | wrap > "$out"
-chmod +x "$out"
-echo "$out"
+# Process input file
+linked_output=$(_link "$1")
+printf '%s\n' "$linked_output" | _lint -
+printf '%s\n' "$linked_output" | _format | _wrap > "$output_file"
+chmod +x "$output_file"
+echo "$output_file"
