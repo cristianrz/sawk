@@ -1,0 +1,91 @@
+#!/bin/sh
+#
+# sawk-run - run a sawk script directly
+# BSD 3-Clause License - see LICENSE file
+#
+# Usage: sawk-run script.awk [args...]
+# Or via shebang: #!/usr/bin/env sawk-run
+
+set -eu
+
+_usage() {
+	cat >&2 <<EOF
+usage: sawk-run script.awk [args...]
+
+Run a sawk script directly without a build step. Resolves #include
+directives relative to the script's directory.
+
+Intended for use as a shebang interpreter:
+
+    #!/usr/bin/env sawk-run
+
+    BEGIN {
+        print "Hello, " ARGV[1] "!"
+        exit
+    }
+EOF
+}
+
+# _link FILE [SEEN]: recursively inlines #include directives.
+# Identical to sawk's _link — kept in sync manually.
+_link() {
+	_lf="$1"
+	_seen="${2:-}"
+
+	_abs="$(cd "$(dirname "$_lf")" && printf '%s/%s' "$(pwd)" "$(basename "$_lf")")"
+
+	case ":${_seen}:" in
+		*":${_abs}:"*)
+			printf 'sawk-run: circular include: %s\n' "$_lf" >&2
+			return 1
+			;;
+	esac
+	_seen="${_seen}:${_abs}"
+
+	while IFS= read -r _line || [ -n "$_line" ]; do
+		case "$_line" in
+			'#include "'*)
+				_inc="${_line#*\"}"
+				_inc="${_inc%\"*}"
+				_inc_path="$(dirname "$_abs")/${_inc}"
+				if [ ! -f "$_inc_path" ]; then
+					printf 'sawk-run: could not find include: %s\n' "$_inc" >&2
+					return 1
+				fi
+				_link "$_inc_path" "$_seen"
+				;;
+			'#!'*)
+				# Strip shebang line
+				;;
+			*)
+				printf '%s\n' "$_line"
+				;;
+		esac
+	done < "$_lf"
+}
+
+if [ "$#" -eq 0 ]; then
+	_usage
+	exit 1
+fi
+
+case "$1" in
+	-h|--help) _usage; exit 0 ;;
+	-*)        _usage; exit 1 ;;
+esac
+
+script="$1"
+shift
+
+if [ ! -f "$script" ]; then
+	printf 'sawk-run: %s: no such file\n' "$script" >&2
+	exit 1
+fi
+
+# Link and run, passing remaining arguments through to the awk program.
+# Arguments appear in awk's ARGV starting at ARGV[1].
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+
+_link "$script" > "$tmp"
+awk -f "$tmp" -- "$@"
