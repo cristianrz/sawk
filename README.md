@@ -7,6 +7,12 @@ sawk -o my-script myfile.awk
 ./my-script arg1 arg2
 ```
 
+Or run directly with a shebang:
+
+```sh
+#!/usr/bin/env sawk-run
+```
+
 ## Why
 
 awk is a capable scripting language that starts fast, has no
@@ -44,7 +50,7 @@ function require_args(n,    msg) {
 ```
 
 ```awk
-#!/usr/bin/awk -f
+#!/usr/bin/env sawk-run
 # greet: prints a greeting for the given name
 #include "lib/args.awk"
 
@@ -55,12 +61,22 @@ BEGIN {
 }
 ```
 
+Run directly:
+
+```sh
+$ chmod +x greet.awk
+$ ./greet.awk world
+Hello, world!
+$ ./greet.awk
+error: expected 1 arguments, got 0
+```
+
+Or compile to a standalone executable:
+
 ```sh
 $ sawk -o greet greet.awk
 $ ./greet world
 Hello, world!
-$ ./greet
-error: expected 1 arguments, got 0
 ```
 
 ## Install
@@ -75,6 +91,14 @@ sudo make install
 
 - `gawk`
 
+## Tools
+
+| Tool | Description |
+|---|---|
+| `sawk` | Compile a sawk script to a standalone executable |
+| `sawk-run` | Run a sawk script directly, for use as a shebang interpreter |
+| `awkfmt` | Format an awk file in place or to stdout |
+
 ## Usage
 
 ```
@@ -88,11 +112,14 @@ sawk [-d] [-m] [-o output_file] [-v] [-h] file|-
   -           Read from stdin
 ```
 
-Also included: `awkfmt`, a standalone awk formatter.
+```
+sawk-run script.awk [args...]
+```
 
-```sh
-awkfmt myfile.awk        # print formatted output
-awkfmt -w myfile.awk     # format in place
+```
+awkfmt [-w] file|-
+
+  -w          Write result to source file instead of stdout
 ```
 
 See `man sawk` for full documentation.
