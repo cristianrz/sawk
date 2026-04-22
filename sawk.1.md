@@ -6,72 +6,124 @@ sawk - some extras to POSIX awk
 
 # SYNOPSIS
 
-sawk [options] filename
+sawk <command> [options] [args]
 
 # DESCRIPTION
 
-Wraps some gawk(1) functions and a linker to make POSIX awk slightly easier to
-work with.
+sawk ("slightly better awk") wraps gawk(1) to provide linking, linting,
+formatting, and execution of POSIX awk scripts. Its name comes from
+"slightly better awk" and it came to life from the frustration of working
+with bare POSIX awk. It adds toolchain conveniences without sacrificing
+portability — the final output is standard POSIX awk wrapped in a shell
+script.
 
-sawk's name comes from "slightly better awk" and it came to live from the
-frustration from trying to work with POSIX awk. It adds some of the features of
-systems programming languages without making it unportable as its main purpose
-is to transpile to POSIX awk.
+# COMMANDS
 
-## Linking
+## sawk init [name]
 
-sawk allows linking libraries to sawk programs by using the traditional
-#include "file" directive. sawk will look for the file and include that file's
-code in the main file at the position where the include directive was found.
+Scaffold a new sawk project. Creates a **sawk.toml** manifest, a
+**main.awk** entry point, and a **.gitignore**. If *name* is given, the
+files are created inside a new directory of that name; otherwise they are
+created in the current directory.
 
-## Linting
+## sawk build [-d] [-m] [-o output] [file]
 
-sawk uses gawk's --lint utility with the fatal option to lint the code before
-it transpiles it to POSIX awk.
+Link, lint, format, and wrap *file* into a self-contained executable shell
+script. If *file* is omitted, the **entry** field from **sawk.toml** is
+used. Prints the output file path on success.
 
-## Formatting
+**-d**
+:   Activate set -x for debugging.
 
-sawk wraps gawk's --format utility to protect empty lines in between lines of
-code, which gawk, for some reason, deletes.
+**-m**
+:   Non-fatal lint — emit warnings but do not fail.
 
-## Shell wrapping
+**-o** *file*
+:   Write output to *file* (default: a.out).
 
-sawk wraps the output of the the previous functions inside a shell script that
-passes all arguments directly to your awk program. This is to avoid awk itself
-recognising the arguments as options for the interpreter rather than for the
-program. It finally outputs a file with the name specified in the arguments, if
-any, otherwise a.out.
+## sawk run [-d] [-m] [file] [args...]
 
-## Options
+Compile *file* and execute it immediately without leaving an artifact on
+disk. Any *args* after the file name are forwarded to the AWK program. If
+*file* is omitted, the **entry** field from **sawk.toml** is used.
 
--d
+**-d**
+:   Activate set -x for debugging.
 
-:   Activates set -x for debugging.
+**-m**
+:   Non-fatal lint — emit warnings but do not fail.
 
--h
+## sawk fmt [-w] [file]
 
-:   Prints brief usage information.
+Format an AWK script using gawk's pretty-printer, preserving intentional
+blank lines that gawk would otherwise discard. Reads from stdin if *file*
+is omitted.
 
--m
+**-w**
+:   Write the result back to *file* in place (cannot be used with stdin).
 
-:   Don't fail if lint finds error.
+## sawk lint [-m] file
 
--o file
+Lint *file* using gawk's **--posix --lint** flags.
 
-:   Write output to file.
+**-m**
+:   Non-fatal mode — emit warnings but exit 0.
 
--v
+# PROJECT MANIFEST
 
-:   Prints the current version number.
+A **sawk.toml** file in the current directory describes the project:
 
+    name    = "myproject"
+    version = "0.1.0"
+    entry   = "main.awk"
+
+**build** and **run** read the **entry** key when no file argument is given.
+
+# LINKING
+
+sawk resolves **#include "file"** directives by inlining the referenced
+file at that position. Includes are resolved relative to the working
+directory. Missing include files are reported as errors.
+
+# LINTING
+
+sawk uses gawk's **--lint=fatal** option to catch undefined variables,
+non-portable constructs, and other warnings before the script is
+distributed. The **-m** flag downgrades fatal errors to warnings.
+
+# FORMATTING
+
+sawk uses gawk's **-o-** pretty-printer. Because gawk deletes blank lines
+during pretty-printing, sawk substitutes a sentinel token before
+formatting and removes it afterward, preserving the author's blank lines.
+Consecutive blank lines are collapsed to one.
+
+# SHELL WRAPPING
+
+The output of **sawk build** is a sh(1) script of the form:
+
+    #!/usr/bin/env sh
+    exec awk '
+    ...awk program...
+    ' -- "$@"
+
+The **--** separator prevents awk from interpreting the caller's arguments
+as interpreter options.
+
+# INVOCATION AS awkfmt / awkexe
+
+When invoked as **awkfmt**, sawk behaves as **sawk fmt**.
+When invoked as **awkexe**, sawk behaves as **sawk run**.
+The Makefile installs symlinks for both names.
 
 # FILES
 
-No files for now.
+**sawk.toml**
+:   Project manifest, read from the current directory.
 
 # ENVIRONMENT
 
-No environment variables for now.
+No environment variables.
 
 # BUGS
 
@@ -84,4 +136,3 @@ Cristian Ariza <dev@cristianrz.com>
 # SEE ALSO
 
 awk(1), gawk(1)
-

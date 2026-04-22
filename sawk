@@ -1,101 +1,143 @@
 #!/bin/sh
 #
-# LICENSE
-#
-# Sawk is a script for formatting, linting, and wrapping AWK scripts with support for #include directives.
+# sawk - slightly better awk
+# BSD 3-Clause License - see LICENSE file
 
 set -eu
 
-# Constants
-EMPTY_PLACEHOLDER="#~#~#"
 VERSION="v0.0.1"
 DEFAULT_OUTPUT="a.out"
 
-# Functions
-# usage displays usage information for the sawk command.
-usage() {
-    cat << EOF >&2
-usage: sawk [-d] [-m] [-o output_file] [-v] file
+# Unique sentinel unlikely to appear in real awk source.
+# Using a valid awk comment so gawk's pretty-printer preserves it.
+EMPTY_PLACEHOLDER="#__SAWK_BLANK_LINE__"
 
-Sawk is a script for formatting, linting, and wrapping AWK scripts with support for #include directives.
+_usage() {
+	cat >&2 <<EOF
+usage: sawk [-d] [-m] [-o output_file] [-v] [-h] file|-
+
+Build tool for awk: resolves #include directives, lints, formats,
+and wraps the result in an executable shell script.
 
 Options:
-  -d          Enable debug mode for verbose output
-  -m          Disable fatal errors in linting (non-fatal mode)
-  -o <file>   Specify output file name (default: a.out)
-  -v          Show version information
-  -h          Show this help message
+  -d          Enable debug mode
+  -m          Non-fatal linting (warnings only)
+  -o <file>   Output file (default: a.out)
+  -v          Show version
+  -h          Show this help
 
 Arguments:
-  file        The AWK script file to process
+  file        AWK script to process
+  -           Read AWK script from stdin
 
 Examples:
   sawk -o myscript.sh myfile.awk
-  sawk -d myfile.awk
-
+  cat myfile.awk | sawk -o myscript.sh -
 EOF
-    exit 0
 }
 
-# _format preserves single empty lines in the input AWK script.
+# _format: reads awk source from stdin, preserves blank lines through
+# gawk's pretty-printer which would otherwise remove them.
 _format() {
-    sed "s/^[\t ]*$/${EMPTY_PLACEHOLDER}/g" | gawk -o- -f- | sed "s/${EMPTY_PLACEHOLDER}//g"
+	sed "s/^[	 ]*$/${EMPTY_PLACEHOLDER}/g" |
+		gawk -o- -f- |
+		sed "s/${EMPTY_PLACEHOLDER}//g"
 }
 
-# _lint runs gawk linting to check for syntax errors and warnings.
+# _lint FILE: lints an awk file using gawk's --lint flag.
 _lint() {
-    gawk --posix "--lint${fatal_flag}" -f "${1--}" >/dev/null
+	gawk --posix "--lint${fatal_flag}" -f "$1" >/dev/null
 }
 
-# _wrap wraps the processed script to make it executable.
+# _wrap: reads awk source from stdin and wraps it in an executable
+# shell script. Only strips the shebang line, preserving blank lines.
 _wrap() {
-    printf '%s\n' "#!/usr/bin/env sh" "exec awk '"
-    sed -e '/^#!/d' -e '/^$/d'
-    printf '%s\n' "'"' -- "$@"'
+	printf '%s\n' "#!/usr/bin/env sh" "exec awk '"
+	sed '/^#!/d'
+	printf '%s\n' "' -- \"\$@\""
 }
 
-# _link handles #include directives in the AWK script.
+# _link FILE [SEEN]: recursively inlines #include directives.
+# SEEN is a colon-separated list of absolute paths already included,
+# used to detect circular includes.
 _link() {
-    awk '
-        BEGIN { exit_code = 0 }
-        /^#include/ {
-            gsub(/"/, "", $2)
-            if ! [ -f "$2" ]; then
-                printf "%s: could not find include: %s\n" "$(basename "$0")" "$2" >&2
-                exit_code=1
-            } else {
-                while ((getline line < $2) > 0) print line
-            }
-            next
-        }
-        { print }
-        END { exit exit_code }
-    ' "$@"
+	_lf="$1"
+	_seen="${2:-}"
+
+	# Resolve to absolute path for reliable cycle detection
+	_abs="$(cd "$(dirname "$_lf")" && printf '%s/%s' "$(pwd)" "$(basename "$_lf")")"
+
+	case ":${_seen}:" in
+		*":${_abs}:"*)
+			printf 'sawk: circular include: %s\n' "$_lf" >&2
+			return 1
+			;;
+	esac
+	_seen="${_seen}:${_abs}"
+
+	while IFS= read -r _line || [ -n "$_line" ]; do
+		case "$_line" in
+			'#include "'*)
+				# Extract filename from #include "file"
+				_inc="${_line#*\"}"
+				_inc="${_inc%\"*}"
+				# Resolve relative to the including file's directory
+				_inc_path="$(dirname "$_abs")/${_inc}"
+				if [ ! -f "$_inc_path" ]; then
+					printf 'sawk: could not find include: %s\n' "$_inc" >&2
+					return 1
+				fi
+				_link "$_inc_path" "$_seen"
+				;;
+			*)
+				printf '%s\n' "$_line"
+				;;
+		esac
+	done < "$_lf"
 }
 
-# Variables
+# Option parsing
 fatal_flag="=fatal"
 output_file="${DEFAULT_OUTPUT}"
 
-# Option parsing
 while getopts "dmo:vh" opt; do
-    case "$opt" in
-        d) set -x ;;
-        m) fatal_flag="" ;;
-        o) output_file="$OPTARG" ;;
-        v) printf '%s\n' "sawk ${VERSION}" && exit ;;
-        h) usage ;;
-        *) usage ;;
-    esac
+	case "$opt" in
+		d) set -x ;;
+		m) fatal_flag="" ;;
+		o) output_file="$OPTARG" ;;
+		v) printf 'sawk %s\n' "$VERSION"; exit 0 ;;
+		h) _usage; exit 0 ;;
+		*) _usage; exit 1 ;;
+	esac
 done
 shift $((OPTIND - 1))
 
-# Check for required arguments
-[ "$#" -ne 1 ] && usage
+if [ "$#" -ne 1 ]; then
+	_usage
+	exit 1
+fi
 
-# Process input file
-linked_output=$(_link "$1")
-printf '%s\n' "$linked_output" | _lint -
-printf '%s\n' "$linked_output" | _format | _wrap > "$output_file"
+# Handle stdin: copy to a temp file so _link can read it as a file
+input="$1"
+tmp_stdin=""
+if [ "$input" = "-" ]; then
+	tmp_stdin="$(mktemp)"
+	trap 'rm -f "$tmp_stdin"' EXIT
+	cat > "$tmp_stdin"
+	input="$tmp_stdin"
+fi
+
+# Write linked output to a temp file so we don't run _link twice
+# (once for lint, once for format+wrap)
+tmp="$(mktemp)"
+if [ -n "$tmp_stdin" ]; then
+	trap 'rm -f "$tmp_stdin" "$tmp"' EXIT
+else
+	trap 'rm -f "$tmp"' EXIT
+fi
+
+_link "$input" > "$tmp"
+_lint "$tmp"
+_format < "$tmp" | _wrap > "$output_file"
 chmod +x "$output_file"
-echo "$output_file"
+printf '%s\n' "$output_file"

@@ -1,46 +1,60 @@
 #!/usr/bin/env sh
 #
-# Formats AWK programs
+# awkfmt - formats AWK programs
+# BSD 3-Clause License - see LICENSE file
 
 set -eu
 
-format(){
-	sed 's/^[\t ]*$/#~#~#/g' "$1" | gawk -o- -f- | sed 's/#~#~#//g' | cat -s
+EMPTY_PLACEHOLDER="#__SAWK_BLANK_LINE__"
+
+# _format: reads awk source from stdin, preserves blank lines through
+# gawk's pretty-printer which would otherwise remove them.
+_format() {
+	sed "s/^[	 ]*$/${EMPTY_PLACEHOLDER}/g" |
+		gawk -o- -f- |
+		sed "s/${EMPTY_PLACEHOLDER}//g"
 }
 
-usage() {
-	printf 'usage: %s [flags] [path ...]
-	-w  write result to (source) file instead of stdout\n' "$(basename "$0")"
-	exit 1
+_usage() {
+	cat >&2 <<EOF
+usage: $(basename "$0") [-d] [-h] [-w] [file|-]
+
+Formats AWK programs using gawk's pretty-printer.
+
+Options:
+  -d  Debug mode
+  -h  Show this help
+  -w  Write result to source file instead of stdout
+EOF
 }
+
+inplace=false
 
 while getopts "dhw" c; do
 	case "$c" in
-	d) set -x ;;
-	w) inplace=true ;;
-	*) usage ;;
+		d) set -x ;;
+		h) _usage; exit 0 ;;
+		w) inplace=true ;;
+		*) _usage; exit 1 ;;
 	esac
 done
 shift "$((OPTIND - 1))"
 
-in="${1--}"
-: "${inplace=false}"
+in="${1:--}"
 
 if "$inplace"; then
-	[ "$in" = "-" ] && 
-		echo 'error: cannot use -w with standard in' >&2 &&
+	if [ "$in" = "-" ]; then
+		printf 'awkfmt: error: cannot use -w with stdin\n' >&2
 		exit 1
-
+	fi
 	out="$(mktemp)"
 	trap 'rm -f "$out"' EXIT
-fi
-
-: "${out=-}"
-
-if "$inplace"; then
-       format "$in" > "$out"
-       cp "$out" "$in"
+	_format < "$in" > "$out"
+	cp "$out" "$in"
 else
-       format "$in"
+	if [ "$in" = "-" ]; then
+		_format
+	else
+		_format < "$in"
+	fi
 fi
-

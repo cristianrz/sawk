@@ -1,5 +1,5 @@
+a.out
+*.out
 *.sawk
-archive
-archive/*
+archive/
 sawk.1
-test*
