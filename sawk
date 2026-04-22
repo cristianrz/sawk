@@ -17,7 +17,8 @@ _usage() {
 usage: sawk [-d] [-m] [-o output_file] [-v] [-h] file|-
 
 Build tool for awk: resolves #include directives, lints, formats,
-and wraps the result in an executable shell script.
+and wraps the result in an executable shell script that runs with
+any POSIX awk.
 
 Options:
   -d          Enable debug mode
@@ -38,19 +39,27 @@ EOF
 
 # _format: reads awk source from stdin, preserves blank lines through
 # gawk's pretty-printer which would otherwise remove them.
+# gawk is used here as a build-time tool only — the output targets
+# POSIX awk and runs without gawk.
 _format() {
 	sed "s/^[	 ]*$/${EMPTY_PLACEHOLDER}/g" |
 		gawk -o- -f- |
 		sed "s/${EMPTY_PLACEHOLDER}//g"
 }
 
-# _lint FILE: lints an awk file using gawk's --lint flag.
+# _lint FILE: lints the source file using gawk as a build-time tool.
+# Rewrites #include to @include so gawk resolves them natively and
+# reports errors with the correct file and line number.
+# gawk is not required at runtime — the compiled output runs with
+# any POSIX awk.
 _lint() {
-	gawk --posix "--lint${fatal_flag}" -f "$1" >/dev/null
+	sed 's|^#include "|@include "|g' "$1" | \
+		gawk "--lint${fatal_flag}" -f - >/dev/null
 }
 
 # _wrap: reads awk source from stdin and wraps it in an executable
-# shell script. Only strips the shebang line, preserving blank lines.
+# shell script that invokes plain awk. Only strips the shebang line,
+# preserving blank lines.
 _wrap() {
 	printf '%s\n' "#!/usr/bin/env sh" "exec awk '"
 	sed '/^#!/d'
@@ -117,7 +126,7 @@ if [ "$#" -ne 1 ]; then
 	exit 1
 fi
 
-# Handle stdin: copy to a temp file so _link can read it as a file
+# Handle stdin: copy to a temp file so _link and _lint can read it
 input="$1"
 tmp_stdin=""
 if [ "$input" = "-" ]; then
@@ -128,7 +137,6 @@ if [ "$input" = "-" ]; then
 fi
 
 # Write linked output to a temp file so we don't run _link twice
-# (once for lint, once for format+wrap)
 tmp="$(mktemp)"
 if [ -n "$tmp_stdin" ]; then
 	trap 'rm -f "$tmp_stdin" "$tmp"' EXIT
@@ -136,8 +144,13 @@ else
 	trap 'rm -f "$tmp"' EXIT
 fi
 
+# Lint the original source — gawk resolves @include natively so errors
+# reference the correct file and line number
+_lint "$input"
+
+# Link everything into a single POSIX awk file
 _link "$input" > "$tmp"
-_lint "$tmp"
+
 _format < "$tmp" | _wrap > "$output_file"
 chmod +x "$output_file"
 printf '%s\n' "$output_file"
