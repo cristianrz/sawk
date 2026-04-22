@@ -1,18 +1,22 @@
 # sawk
 
-A build tool for awk. Adds `#include`, linting, and formatting — then
-wraps the result in an executable shell script.
+A build tool for awk used as a general-purpose scripting language.
 
 ```sh
 sawk -o my-script myfile.awk
+./my-script arg1 arg2
 ```
 
 ## Why
 
-POSIX awk has no way to split a program across files. Large awk programs
-end up as a single monolithic script with no way to share common functions
-between projects. `sawk` fixes this with a linker, and adds linting and
-formatting while it's at it.
+awk is a capable scripting language that starts fast, has no
+dependencies, and runs everywhere. The problem is tooling: no way to
+split programs across files, no linter, no formatter, and passing
+arguments requires wrapping in a shell script every time.
+
+`sawk` fixes all of this. Write awk programs the way you'd write any
+other language, with `#include` for shared libraries and proper
+command-line arguments.
 
 ## What it does
 
@@ -22,30 +26,41 @@ formatting while it's at it.
    are caught before the script is written
 3. **Formats** — pretty-prints via `gawk --pretty-print`, preserving
    blank lines
-4. **Wraps** — produces an executable shell script that passes all
-   arguments directly to awk
+4. **Wraps** — produces an executable shell script so arguments reach
+   your awk program as `ARGV` rather than being consumed by the
+   interpreter
 
 ## Example
 
 ```awk
-# lib/strings.awk
-function trim(s) {
-    gsub(/^[ \t]+|[ \t]+$/, "", s)
-    return s
+# lib/args.awk
+function require_args(n,    msg) {
+    if (ARGC - 1 < n) {
+        msg = "error: expected " n " arguments, got " (ARGC - 1)
+        print msg > "/dev/stderr"
+        exit 1
+    }
 }
 ```
 
 ```awk
 #!/usr/bin/awk -f
-#include "lib/strings.awk"
+# greet: prints a greeting for the given name
+#include "lib/args.awk"
 
-{ print trim($0) }
+BEGIN {
+    require_args(1)
+    print "Hello, " ARGV[1] "!"
+    exit
+}
 ```
 
 ```sh
-$ sawk -o trim trim.awk
-$ echo "  hello  " | ./trim
-hello
+$ sawk -o greet greet.awk
+$ ./greet world
+Hello, world!
+$ ./greet
+error: expected 1 arguments, got 0
 ```
 
 ## Install
@@ -76,8 +91,8 @@ sawk [-d] [-m] [-o output_file] [-v] [-h] file|-
 Also included: `awkfmt`, a standalone awk formatter.
 
 ```sh
-awkfmt myfile.awk          # print formatted output
-awkfmt -w myfile.awk       # format in place
+awkfmt myfile.awk        # print formatted output
+awkfmt -w myfile.awk     # format in place
 ```
 
 See `man sawk` for full documentation.
