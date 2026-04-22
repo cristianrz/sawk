@@ -7,6 +7,7 @@ set -eu
 
 VERSION="v0.0.1"
 DEFAULT_OUTPUT="a.out"
+SAWK_HOME="${HOME}/.sawk"
 
 # Unique sentinel unlikely to appear in real awk source.
 # Using a valid awk comment so gawk's pretty-printer preserves it.
@@ -15,25 +16,24 @@ EMPTY_PLACEHOLDER="#__SAWK_BLANK_LINE__"
 _usage() {
 	cat >&2 <<EOF
 usage: sawk [-d] [-m] [-o output_file] [-v] [-h] file|-
+       sawk install user/repo
+       sawk remove  user/repo
+       sawk list
 
 Build tool for awk: resolves #include directives, lints, formats,
 and wraps the result in an executable shell script that runs with
 any POSIX awk.
 
-Options:
+Compilation options:
   -d          Enable debug mode
   -m          Non-fatal linting (warnings only)
   -o <file>   Output file (default: a.out)
   -v          Show version
   -h          Show this help
 
-Arguments:
-  file        AWK script to process
-  -           Read AWK script from stdin
-
-Examples:
-  sawk -o myscript.sh myfile.awk
-  cat myfile.awk | sawk -o myscript.sh -
+Include resolution:
+  #include "./file.awk"       relative to the including file
+  #include "user/repo/f.awk"  installed package in ~/.sawk/user/repo/
 EOF
 }
 
@@ -67,6 +67,8 @@ _wrap() {
 }
 
 # _link FILE [SEEN]: recursively inlines #include directives.
+# Paths starting with ./ or ../ are resolved relative to the including
+# file. All other paths are resolved from ~/.sawk/ as installed packages.
 # SEEN is a colon-separated list of absolute paths already included,
 # used to detect circular includes.
 _link() {
@@ -87,11 +89,18 @@ _link() {
 	while IFS= read -r _line || [ -n "$_line" ]; do
 		case "$_line" in
 			'#include "'*)
-				# Extract filename from #include "file"
 				_inc="${_line#*\"}"
 				_inc="${_inc%\"*}"
-				# Resolve relative to the including file's directory
-				_inc_path="$(dirname "$_abs")/${_inc}"
+				case "$_inc" in
+					./*|../*)
+						# Local path — resolve relative to including file
+						_inc_path="$(dirname "$_abs")/${_inc}"
+						;;
+					*)
+						# Package path — resolve from ~/.sawk/
+						_inc_path="${SAWK_HOME}/${_inc}"
+						;;
+				esac
 				if [ ! -f "$_inc_path" ]; then
 					printf 'sawk: could not find include: %s\n' "$_inc" >&2
 					return 1
@@ -104,6 +113,79 @@ _link() {
 		esac
 	done < "$_lf"
 }
+
+# _install user/repo: download a package from GitHub and install to
+# ~/.sawk/user/repo/
+_install() {
+	[ "$#" -ne 1 ] && printf 'usage: sawk install user/repo\n' >&2 && exit 1
+
+	_pkg="$1"
+	_user="${_pkg%/*}"
+	_repo="${_pkg#*/}"
+
+	if [ "$_user" = "$_pkg" ] || [ -z "$_user" ] || [ -z "$_repo" ]; then
+		printf 'sawk: invalid package name: %s (expected user/repo)\n' "$_pkg" >&2
+		exit 1
+	fi
+
+	_dest="${SAWK_HOME}/${_user}/${_repo}"
+
+	if [ -d "$_dest" ]; then
+		printf 'sawk: %s is already installed\n' "$_pkg" >&2
+		exit 1
+	fi
+
+	_url="https://github.com/${_pkg}/archive/refs/heads/main.tar.gz"
+	_tmp="$(mktemp -d)"
+	trap 'rm -rf "$_tmp"' EXIT
+
+	printf 'sawk: downloading %s...\n' "$_pkg"
+	if command -v curl >/dev/null 2>&1; then
+		curl -sL -o "$_tmp/pkg.tar.gz" "$_url"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -q -O "$_tmp/pkg.tar.gz" "$_url"
+	else
+		printf 'sawk: curl or wget is required to install packages\n' >&2
+		exit 1
+	fi
+
+	mkdir -p "${SAWK_HOME}/${_user}"
+	tar xzf "$_tmp/pkg.tar.gz" -C "$_tmp"
+	mv "$_tmp/${_repo}-main" "$_dest"
+
+	printf 'sawk: installed %s\n' "$_pkg"
+}
+
+# _remove user/repo: remove an installed package
+_remove() {
+	[ "$#" -ne 1 ] && printf 'usage: sawk remove user/repo\n' >&2 && exit 1
+
+	_pkg="$1"
+	_dest="${SAWK_HOME}/${_pkg}"
+
+	if [ ! -d "$_dest" ]; then
+		printf 'sawk: %s is not installed\n' "$_pkg" >&2
+		exit 1
+	fi
+
+	rm -rf "$_dest"
+	printf 'sawk: removed %s\n' "$_pkg"
+}
+
+# _list: list installed packages
+_list() {
+	[ ! -d "$SAWK_HOME" ] && exit 0
+	find "$SAWK_HOME" -mindepth 2 -maxdepth 2 -type d | \
+		sed "s|${SAWK_HOME}/||g" | \
+		sort
+}
+
+# Subcommand dispatch
+case "${1:-}" in
+	install) shift; _install "$@"; exit 0 ;;
+	remove)  shift; _remove  "$@"; exit 0 ;;
+	list)    _list; exit 0 ;;
+esac
 
 # Option parsing
 fatal_flag="=fatal"

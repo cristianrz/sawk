@@ -22,14 +22,15 @@ arguments requires wrapping in a shell script every time.
 
 `sawk` fixes all of this. Write awk programs the way you'd write any
 other language, with `#include` for shared libraries and proper
-command-line arguments.
+command-line arguments. The output runs with any POSIX awk — gawk is
+only required at build time.
 
 ## What it does
 
-1. **Links** — resolves `#include "file.awk"` directives recursively,
-   detecting circular includes
-2. **Lints** — runs `gawk --lint=fatal` on the linked output so errors
-   are caught before the script is written
+1. **Links** — resolves `#include` directives recursively, detecting
+   circular includes
+2. **Lints** — runs `gawk --lint` on the source with correct file and
+   line numbers in error messages
 3. **Formats** — pretty-prints via `gawk --pretty-print`, preserving
    blank lines
 4. **Wraps** — produces an executable shell script so arguments reach
@@ -52,7 +53,7 @@ function require_args(n,    msg) {
 ```awk
 #!/usr/bin/env sawk-run
 # greet: prints a greeting for the given name
-#include "lib/args.awk"
+#include "./lib/args.awk"
 
 BEGIN {
     require_args(1)
@@ -79,6 +80,31 @@ $ ./greet world
 Hello, world!
 ```
 
+## Packages
+
+Install a library from GitHub:
+
+```sh
+sawk install cristianrz/sawk-args
+```
+
+This downloads the package to `~/.sawk/cristianrz/sawk-args/`. Reference
+it in your scripts with a bare path (no `./`):
+
+```awk
+#include "cristianrz/sawk-args/args.awk"
+```
+
+Bare paths resolve from `~/.sawk/`. Paths starting with `./` or `../`
+resolve relative to the including file — the same convention as Go and
+Node.
+
+```sh
+sawk install user/repo   # install from GitHub
+sawk remove  user/repo   # uninstall
+sawk list                # list installed packages
+```
+
 ## Install
 
 ```sh
@@ -89,7 +115,8 @@ sudo make install
 
 ## Dependencies
 
-- `gawk`
+- `gawk` (build time only — compiled output runs with any POSIX awk)
+- `curl` or `wget` (for `sawk install`)
 
 ## Tools
 
@@ -103,6 +130,9 @@ sudo make install
 
 ```
 sawk [-d] [-m] [-o output_file] [-v] [-h] file|-
+sawk install user/repo
+sawk remove  user/repo
+sawk list
 
   -d          Debug mode
   -m          Non-fatal linting (warnings only)
